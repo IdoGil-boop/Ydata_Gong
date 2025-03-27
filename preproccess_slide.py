@@ -1,5 +1,7 @@
 import pandas as pd
 import pptx
+import numpy as np
+import io
 
 
 # Function to replace text with PLACEHOLDER if it's wrapped in [[]], [] or {}
@@ -98,3 +100,68 @@ def create_df_to_visualize_prs(prs):
 def save_prs(path, prs):
     if type(prs) is pptx.presentation.Presentation:
         prs.save(path)
+    print(f'prs saved to {path}')
+    return path
+
+# change order of slides
+def change_order_of_slides(prs, path = r'modified_presentations\new_prs.pptx', new_order = None):
+    """
+    Reorders slides in a presentation according to the specified order.
+    
+    Args:
+        prs: The presentation object (pptx.presentation.Presentation)
+        new_order: List of slide indices (1-based) in the desired order
+    
+    Returns:
+        A new presentation with reordered slides
+    """
+    # save copy of prs
+    new_prs = pptx.Presentation(save_prs(
+        r'modified_presentations\presentation_copy.pptx',
+        prs
+    ))
+
+    # if new_order is not provided, randomize the order
+    if new_order is None:
+        new_order = np.random.permutation(np.arange(1, len(prs.slides) + 1)).tolist()
+    
+    # Check if new_order indices are valid
+    max_index = len(prs.slides)
+    for idx in new_order:
+        if idx < 1 or idx > max_index:
+            raise ValueError(f"Slide index {idx} is out of range (1-{max_index})")
+    
+    # Make a copy of the slide id elements:
+    slide_id_elements = list(new_prs.slides._sldIdLst)
+    
+    # Clear them all out of the official list
+    for sldId in slide_id_elements:
+        new_prs.slides._sldIdLst.remove(sldId)
+
+    # Re-insert in the new order
+    for idx in new_order:
+        print(f'idx: {idx}')
+        new_prs.slides._sldIdLst.append(slide_id_elements[idx-1])
+        
+    # save new prs
+    return save_prs(path, new_prs)
+
+
+
+# Example usage
+if __name__ == "__main__":
+    import pptx
+    
+    # Load the presentation
+    prs = pptx.Presentation(r'C:\Users\idogil\Ydata_Gong\original_presentations\Gong Sample Deck Slides with Placeholders Template.pptx')
+    
+    # Reorder slides and save to a new file
+    reordered_prs = change_order_of_slides(prs, new_order=[8,1,2,6,5,4,3,7])
+    
+    # # Save the reordered presentation
+    # save_prs(
+    #     r'modified_presentations\presentation_with_reordered_slides.pptx',
+    #     reordered_prs
+    # )
+
+    
