@@ -47,7 +47,7 @@ def replace_placeholder_with_text(text, placeholder_text, replacement_text):
 # Function to replace text with replacement text if it's wrapped in [[]], [] or {}
 def replace_placeholders(presentation, replacement_texts=None):
     if replacement_texts is None:
-        replacement_texts = [["PLACEHOLDER" for _ in range(100)] for _ in range(len(presentation.slides))]
+        replacement_texts= []
     
     for slide_idx, slide in enumerate(presentation.slides):
         placeholder_count = 0
@@ -62,8 +62,9 @@ def replace_placeholders(presentation, replacement_texts=None):
                 # Check if the entire paragraph is a placeholder
                 if check_if_text_is_placeholder(paragraph_text):
                     # Get replacement text for this placeholder
-                    replacement = "PLACEHOLDER"
-                    if slide_idx < len(replacement_texts) and placeholder_count < len(replacement_texts[slide_idx]):
+                    replacement = "placeholder"
+                    if (slide_idx < len(replacement_texts) and 
+                        placeholder_count < len(replacement_texts[slide_idx])):
                         replacement = replacement_texts[slide_idx][placeholder_count]
                     placeholder_count += 1
                     
@@ -87,8 +88,9 @@ def replace_placeholders(presentation, replacement_texts=None):
                             modified_text = run_text
                             for match in matches:
                                 placeholder_text = match.group()
-                                replacement = "PLACEHOLDER"
-                                if slide_idx < len(replacement_texts) and placeholder_count < len(replacement_texts[slide_idx]):
+                                replacement = "placeholder"
+                                if (slide_idx < len(replacement_texts) and 
+                                    placeholder_count < len(replacement_texts[slide_idx])):
                                     replacement = replacement_texts[slide_idx][placeholder_count]
                                 placeholder_count += 1
                                 
