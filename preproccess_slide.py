@@ -1,15 +1,43 @@
 import pandas as pd
 import pptx
+import re
 import numpy as np
 import io
 
 
 def remove_brackets(text):
+    print(f"text: {text}")
     while text.startswith(('[', '{')):
         text = text[1:]
     while text.endswith((']', '}')):
         text = text[:-1]
+    print(f"text after: {text}")
     return text
+
+def check_if_text_is_placeholder(text):
+    return text.strip().startswith(("[", "{")) and text.strip().endswith(("]", "}"))
+
+def check_if_placeholder_is_inside_text(text):
+    """
+    Check if text contains any placeholders (text wrapped in [], [[]], or {})
+    
+    Args:
+        text: String to check for placeholders
+        
+    Returns:
+        tuple: (bool, list) - True if text contains placeholders and list of matches, False and empty list otherwise
+    """
+    patterns = [
+        r'[\[{]+.*?[\]}]+',  # Matches text surrounded by one or more [ or { at start and one or more ] or } at end
+    ]
+    
+    all_matches = []
+    for pattern in patterns:
+        matches = list(re.finditer(pattern, text))
+        all_matches.extend(matches)
+        
+    return bool(all_matches), all_matches
+
 
 # Function to replace text with PLACEHOLDER if it's wrapped in [[]], [] or {}
 def replace_placeholders(presentation):
@@ -23,20 +51,7 @@ def replace_placeholders(presentation):
                 paragraph_text = paragraph.text
 
                 # Check if the entire paragraph is a placeholder
-                if (
-                    (
-                        paragraph_text.strip().startswith("[")
-                        and paragraph_text.strip().endswith("]")
-                    )
-                    or (
-                        paragraph_text.strip().startswith("[[")
-                        and paragraph_text.strip().endswith("]]")
-                    )
-                    or (
-                        paragraph_text.strip().startswith("{")
-                        and paragraph_text.strip().endswith("}")
-                    )
-                ):
+                if check_if_text_is_placeholder(paragraph_text):
                     # Clear existing runs
                     for idx in range(len(paragraph.runs)):
                         if idx == 0:
@@ -46,29 +61,16 @@ def replace_placeholders(presentation):
                         else:
                             paragraph.runs[idx].text = ""
                 else:
-                    # Check for placeholders within the text
-                    import re
-
-                    # Patterns for all three types of placeholders
-                    placeholder_patterns = [
-                        r"\[.*?\]",  # [text]
-                        r"\[\[.*?\]\]",  # [[text]]
-                        r"\{.*?\}",  # {text}
-                    ]
-
                     # Process each run in the paragraph
                     for run in paragraph.runs:
                         run_text = run.text
-                        if any(char in run_text for char in ["[", "{", "}"]):
+                        has_placeholders, matches = check_if_placeholder_is_inside_text(run_text)
+                        if has_placeholders:
                             # Replace all instances of placeholders with PLACEHOLDER
                             modified_text = run_text
-                            for pattern in placeholder_patterns:
-                                # Find all matches to remove their brackets
-                                matches = re.finditer(pattern, modified_text)
-                                for match in matches:
-                                    placeholder_text = match.group()
-                                    # Remove all brackets from matched text
-                                    modified_text = modified_text.replace(placeholder_text, "PLACEHOLDER")
+                            for match in matches:
+                                placeholder_text = match.group()
+                                modified_text = modified_text.replace(placeholder_text, "PLACEHOLDER")
                             run.text = modified_text
 
 
@@ -220,30 +222,18 @@ def replace_placeholders_in_xml(
                 text = elem.text if elem.text else ""
                 
                 # Check if entire text is a placeholder
-                if (text.strip().startswith('[') and text.strip().endswith(']')) or \
-                   (text.strip().startswith('[[') and text.strip().endswith(']]')) or \
-                   (text.strip().startswith('{') and text.strip().endswith('}')):
+                if check_if_text_is_placeholder(text):
                     # Remove all brackets from the text using remove_brackets function
                     inner_text = remove_brackets(text.strip())
                     elem.text = "PLACEHOLDER"
                 else:
                     # Check for placeholders within text
-                    patterns = [
-                        r'\[.*?\]',      # [text]
-                        r'\[\[.*?\]\]',  # [[text]]
-                        r'\{.*?\}'       # {text}
-                    ]
-                    
-                    modified_text = text
-                    for pattern in patterns:
-                        # Find all matches to remove their brackets
-                        matches = re.finditer(pattern, modified_text)
+                    has_placeholders, matches = check_if_placeholder_is_inside_text(text)
+                    if has_placeholders:
+                        modified_text = text
                         for match in matches:
                             placeholder_text = match.group()
-                            # Remove all brackets from matched text
                             modified_text = modified_text.replace(placeholder_text, "PLACEHOLDER")
-                    
-                    if modified_text != text:
                         elem.text = modified_text
             
             # Write modified XML back to the file
