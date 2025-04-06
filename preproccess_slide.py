@@ -4,6 +4,13 @@ import numpy as np
 import io
 
 
+def remove_brackets(text):
+    while text.startswith(('[', '{')):
+        text = text[1:]
+    while text.endswith((']', '}')):
+        text = text[:-1]
+    return text
+
 # Function to replace text with PLACEHOLDER if it's wrapped in [[]], [] or {}
 def replace_placeholders(presentation):
     for slide in presentation.slides:
@@ -33,6 +40,8 @@ def replace_placeholders(presentation):
                     # Clear existing runs
                     for idx in range(len(paragraph.runs)):
                         if idx == 0:
+                            # Process text to remove brackets/braces from start and end
+                            inner_text = remove_brackets(paragraph_text.strip())
                             paragraph.runs[0].text = "PLACEHOLDER"
                         else:
                             paragraph.runs[idx].text = ""
@@ -54,9 +63,12 @@ def replace_placeholders(presentation):
                             # Replace all instances of placeholders with PLACEHOLDER
                             modified_text = run_text
                             for pattern in placeholder_patterns:
-                                modified_text = re.sub(
-                                    pattern, "PLACEHOLDER", modified_text
-                                )
+                                # Find all matches to remove their brackets
+                                matches = re.finditer(pattern, modified_text)
+                                for match in matches:
+                                    placeholder_text = match.group()
+                                    # Remove all brackets from matched text
+                                    modified_text = modified_text.replace(placeholder_text, "PLACEHOLDER")
                             run.text = modified_text
 
 
@@ -211,6 +223,8 @@ def replace_placeholders_in_xml(
                 if (text.strip().startswith('[') and text.strip().endswith(']')) or \
                    (text.strip().startswith('[[') and text.strip().endswith(']]')) or \
                    (text.strip().startswith('{') and text.strip().endswith('}')):
+                    # Remove all brackets from the text using remove_brackets function
+                    inner_text = remove_brackets(text.strip())
                     elem.text = "PLACEHOLDER"
                 else:
                     # Check for placeholders within text
@@ -222,7 +236,12 @@ def replace_placeholders_in_xml(
                     
                     modified_text = text
                     for pattern in patterns:
-                        modified_text = re.sub(pattern, 'PLACEHOLDER', modified_text)
+                        # Find all matches to remove their brackets
+                        matches = re.finditer(pattern, modified_text)
+                        for match in matches:
+                            placeholder_text = match.group()
+                            # Remove all brackets from matched text
+                            modified_text = modified_text.replace(placeholder_text, "PLACEHOLDER")
                     
                     if modified_text != text:
                         elem.text = modified_text
