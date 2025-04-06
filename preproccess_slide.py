@@ -40,11 +40,18 @@ def check_if_placeholder_is_inside_text(text):
 
     return bool(all_matches), all_matches
 
+def replace_placeholder_with_text(text, placeholder_text, replacement_text):
+    return text.replace(placeholder_text, replacement_text)
 
-# Function to replace text with PLACEHOLDER if it's wrapped in [[]], [] or {}
-def replace_placeholders(presentation):
-    for slide in presentation.slides:
 
+# Function to replace text with replacement text if it's wrapped in [[]], [] or {}
+def replace_placeholders(presentation, replacement_texts=None):
+    if replacement_texts is None:
+        replacement_texts = [["PLACEHOLDER" for _ in range(100)] for _ in range(len(presentation.slides))]
+    
+    for slide_idx, slide in enumerate(presentation.slides):
+        placeholder_count = 0
+        
         for shape in slide.shapes:
             if not shape.has_text_frame:
                 continue
@@ -54,12 +61,18 @@ def replace_placeholders(presentation):
 
                 # Check if the entire paragraph is a placeholder
                 if check_if_text_is_placeholder(paragraph_text):
+                    # Get replacement text for this placeholder
+                    replacement = "PLACEHOLDER"
+                    if slide_idx < len(replacement_texts) and placeholder_count < len(replacement_texts[slide_idx]):
+                        replacement = replacement_texts[slide_idx][placeholder_count]
+                    placeholder_count += 1
+                    
                     # Clear existing runs
                     for idx in range(len(paragraph.runs)):
                         if idx == 0:
                             # Process text to remove brackets/braces from start and end
                             inner_text = remove_brackets(paragraph_text.strip())
-                            paragraph.runs[0].text = "PLACEHOLDER"
+                            paragraph.runs[0].text = replacement
                         else:
                             paragraph.runs[idx].text = ""
                 else:
@@ -70,12 +83,17 @@ def replace_placeholders(presentation):
                             run_text
                         )
                         if has_placeholders:
-                            # Replace all instances of placeholders with PLACEHOLDER
+                            # Replace all instances of placeholders with appropriate replacement text
                             modified_text = run_text
                             for match in matches:
                                 placeholder_text = match.group()
-                                modified_text = modified_text.replace(
-                                    placeholder_text, "PLACEHOLDER"
+                                replacement = "PLACEHOLDER"
+                                if slide_idx < len(replacement_texts) and placeholder_count < len(replacement_texts[slide_idx]):
+                                    replacement = replacement_texts[slide_idx][placeholder_count]
+                                placeholder_count += 1
+                                
+                                modified_text = replace_placeholder_with_text(
+                                    modified_text, placeholder_text, replacement
                                 )
                             run.text = modified_text
 
@@ -187,6 +205,7 @@ def change_order_of_slides(
 def replace_placeholders_in_xml(
     input_path,
     output_path=r"modified_presentations\presentation_with_placeholders.pptx",
+    replacement_texts=None
 ):
     """
     Loads a presentation and modifies the XML directly to replace placeholder text patterns.
@@ -194,6 +213,7 @@ def replace_placeholders_in_xml(
     Args:
         input_path: Path to the original presentation
         output_path: Path where modified presentation will be saved
+        replacement_texts: 2D array where rows are slide numbers and columns are placeholder indices
 
     Returns:
         Path to the modified presentation
@@ -211,7 +231,7 @@ def replace_placeholders_in_xml(
         # Read all slide XML files
         slide_files = [f for f in zin.namelist() if f.startswith("ppt/slides/slide")]
 
-        for slide_file in slide_files:
+        for slide_idx, slide_file in enumerate(slide_files):
             # Read the slide XML
             xml_content = zin.read(slide_file)
             root = ET.fromstring(xml_content)
@@ -224,15 +244,22 @@ def replace_placeholders_in_xml(
 
             # Find all text elements
             text_elements = root.findall(".//a:t", namespaces=nsmap)
-
+            
+            placeholder_count = 0
             for elem in text_elements:
                 text = elem.text if elem.text else ""
 
                 # Check if entire text is a placeholder
                 if check_if_text_is_placeholder(text):
+                    # Get replacement text for this placeholder
+                    replacement = "PLACEHOLDER"
+                    if replacement_texts and slide_idx < len(replacement_texts) and placeholder_count < len(replacement_texts[slide_idx]):
+                        replacement = replacement_texts[slide_idx][placeholder_count]
+                    placeholder_count += 1
+                    
                     # Remove all brackets from the text using remove_brackets function
                     inner_text = remove_brackets(text.strip())
-                    elem.text = "PLACEHOLDER"
+                    elem.text = replacement
                 else:
                     # Check for placeholders within text
                     has_placeholders, matches = check_if_placeholder_is_inside_text(
@@ -242,8 +269,15 @@ def replace_placeholders_in_xml(
                         modified_text = text
                         for match in matches:
                             placeholder_text = match.group()
-                            modified_text = modified_text.replace(
-                                placeholder_text, "PLACEHOLDER"
+                            
+                            # Get replacement text for this placeholder
+                            replacement = "PLACEHOLDER"
+                            if replacement_texts and slide_idx < len(replacement_texts) and placeholder_count < len(replacement_texts[slide_idx]):
+                                replacement = replacement_texts[slide_idx][placeholder_count]
+                            placeholder_count += 1
+                            
+                            modified_text = replace_placeholder_with_text(
+                                modified_text, placeholder_text, replacement
                             )
                         elem.text = modified_text
 
@@ -263,13 +297,18 @@ if __name__ == "__main__":
         r"/Users/ido.gil-ext@gong.io/Ydata_Gong/original_presentations/Gong Sample Deck Slides with Placeholders Template.pptx"
     )
 
-    # Reorder slides and save to a new file
-    # reordered_prs = change_order_of_slides(prs, new_order=[8, 1, 2, 6, 5, 4, 3, 7])
+    # Example of replacement texts - 2D array where rows are slides and columns are placeholders
+    replacement_texts = [
+        ["Title 1", "Subtitle 1"],  # Replacements for slide 1
+        ["Point 1", "Point 2", "Point 3"],  # Replacements for slide 2
+        ["Conclusion Text"]  # Replacements for slide 3
+    ]
 
     # Replace placeholders in the XML
     replace_placeholders_in_xml(
         r"/Users/ido.gil-ext@gong.io/Ydata_Gong/original_presentations/Gong Sample Deck Slides with Placeholders Template.pptx",
         r"modified_presentations/presentation_with_placeholders.pptx",
+        replacement_texts
     )
 
     # # Save the reordered presentation
