@@ -7,35 +7,37 @@ import io
 
 def remove_brackets(text):
     print(f"text: {text}")
-    while text.startswith(('[', '{')):
+    while text.startswith(("[", "{")):
         text = text[1:]
-    while text.endswith((']', '}')):
+    while text.endswith(("]", "}")):
         text = text[:-1]
     print(f"text after: {text}")
     return text
 
+
 def check_if_text_is_placeholder(text):
     return text.strip().startswith(("[", "{")) and text.strip().endswith(("]", "}"))
+
 
 def check_if_placeholder_is_inside_text(text):
     """
     Check if text contains any placeholders (text wrapped in [], [[]], or {})
-    
+
     Args:
         text: String to check for placeholders
-        
+
     Returns:
         tuple: (bool, list) - True if text contains placeholders and list of matches, False and empty list otherwise
     """
     patterns = [
-        r'[\[{]+.*?[\]}]+',  # Matches text surrounded by one or more [ or { at start and one or more ] or } at end
+        r"[\[{]+.*?[\]}]+",  # Matches text surrounded by one or more [ or { at start and one or more ] or } at end
     ]
-    
+
     all_matches = []
     for pattern in patterns:
         matches = list(re.finditer(pattern, text))
         all_matches.extend(matches)
-        
+
     return bool(all_matches), all_matches
 
 
@@ -64,13 +66,17 @@ def replace_placeholders(presentation):
                     # Process each run in the paragraph
                     for run in paragraph.runs:
                         run_text = run.text
-                        has_placeholders, matches = check_if_placeholder_is_inside_text(run_text)
+                        has_placeholders, matches = check_if_placeholder_is_inside_text(
+                            run_text
+                        )
                         if has_placeholders:
                             # Replace all instances of placeholders with PLACEHOLDER
                             modified_text = run_text
                             for match in matches:
                                 placeholder_text = match.group()
-                                modified_text = modified_text.replace(placeholder_text, "PLACEHOLDER")
+                                modified_text = modified_text.replace(
+                                    placeholder_text, "PLACEHOLDER"
+                                )
                             run.text = modified_text
 
 
@@ -179,15 +185,16 @@ def change_order_of_slides(
 
 
 def replace_placeholders_in_xml(
-    input_path, output_path=r"modified_presentations\presentation_with_placeholders.pptx"
+    input_path,
+    output_path=r"modified_presentations\presentation_with_placeholders.pptx",
 ):
     """
     Loads a presentation and modifies the XML directly to replace placeholder text patterns.
-    
+
     Args:
         input_path: Path to the original presentation
         output_path: Path where modified presentation will be saved
-        
+
     Returns:
         Path to the modified presentation
     """
@@ -195,32 +202,32 @@ def replace_placeholders_in_xml(
     from zipfile import ZipFile
     import re
     import xml.etree.ElementTree as ET
-    
+
     # Create a copy of the presentation
     shutil.copy2(input_path, output_path)
-    
+
     # Open the presentation as a zip file
-    with ZipFile(output_path, 'r') as zin:
+    with ZipFile(output_path, "r") as zin:
         # Read all slide XML files
-        slide_files = [f for f in zin.namelist() if f.startswith('ppt/slides/slide')]
-        
+        slide_files = [f for f in zin.namelist() if f.startswith("ppt/slides/slide")]
+
         for slide_file in slide_files:
             # Read the slide XML
             xml_content = zin.read(slide_file)
             root = ET.fromstring(xml_content)
-            
+
             # Define namespace map
             nsmap = {
-                'a': 'http://schemas.openxmlformats.org/drawingml/2006/main',
-                'p': 'http://schemas.openxmlformats.org/presentationml/2006/main'
+                "a": "http://schemas.openxmlformats.org/drawingml/2006/main",
+                "p": "http://schemas.openxmlformats.org/presentationml/2006/main",
             }
-            
+
             # Find all text elements
-            text_elements = root.findall('.//a:t', namespaces=nsmap)
-            
+            text_elements = root.findall(".//a:t", namespaces=nsmap)
+
             for elem in text_elements:
                 text = elem.text if elem.text else ""
-                
+
                 # Check if entire text is a placeholder
                 if check_if_text_is_placeholder(text):
                     # Remove all brackets from the text using remove_brackets function
@@ -228,22 +235,23 @@ def replace_placeholders_in_xml(
                     elem.text = "PLACEHOLDER"
                 else:
                     # Check for placeholders within text
-                    has_placeholders, matches = check_if_placeholder_is_inside_text(text)
+                    has_placeholders, matches = check_if_placeholder_is_inside_text(
+                        text
+                    )
                     if has_placeholders:
                         modified_text = text
                         for match in matches:
                             placeholder_text = match.group()
-                            modified_text = modified_text.replace(placeholder_text, "PLACEHOLDER")
+                            modified_text = modified_text.replace(
+                                placeholder_text, "PLACEHOLDER"
+                            )
                         elem.text = modified_text
-            
+
             # Write modified XML back to the file
-            with ZipFile(output_path, 'a') as zout:
-                zout.writestr(slide_file, ET.tostring(root, encoding='UTF-8'))
-    
+            with ZipFile(output_path, "a") as zout:
+                zout.writestr(slide_file, ET.tostring(root, encoding="UTF-8"))
+
     return output_path
-
-
-
 
 
 # Example usage
@@ -261,7 +269,7 @@ if __name__ == "__main__":
     # Replace placeholders in the XML
     replace_placeholders_in_xml(
         r"/Users/ido.gil-ext@gong.io/Ydata_Gong/original_presentations/Gong Sample Deck Slides with Placeholders Template.pptx",
-        r"modified_presentations/presentation_with_placeholders.pptx"
+        r"modified_presentations/presentation_with_placeholders.pptx",
     )
 
     # # Save the reordered presentation
