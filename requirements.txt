@@ -8,6 +8,6 @@ python-pptx
 openai
 anthropic
 python-dotenv
-re
-io
 typing
+streamlit
+datasets
